@@ -8,7 +8,7 @@ type Response {
 	Message string `json:"message"`
 }
 
-type StoreRequest {
+type DispatchRequest {
 	TaskType     string `json:"taskType"` // 任务类型
 	ScheduleType string `json:"scheduleType"` // 指定要创建的crd类型
 	Spec         string `json:"spec"` // 任务的定义
@@ -17,16 +17,29 @@ type StoreRequest {
 	Version      string `json:"version"` // 版本号
 }
 
-type StoreResponse {
+type DispatchResponse {
 	Code    int    `json:"code"` // 响应状态码
 	Message string `json:"message"` // 响应信息
+}
+
+type GetClusterCRsRequest {
+	Type string `json:"type"` // 类型
+}
+
+type GetClusterCRsResponse {
+	Code    int                      `json:"code"` // 响应状态码
+	Message string                   `json:"message"` // 响应信息
+	Data    []map[string]interface{} `json:"data"` // 数据
 }
 
 service entry-api {
 	@handler EntryHandler
 	get /from/:name (Request) returns (Response)
 
-	@handler StoreHandler
-	post /store (StoreRequest) returns (StoreResponse)
+	@handler dispatchHandler
+	post /dispatch (DispatchRequest) returns (DispatchResponse)
+
+	@handler getClusterCRsHandler
+	get /cluster/get (GetClusterCRsRequest) returns (GetClusterCRsResponse)
 }
 

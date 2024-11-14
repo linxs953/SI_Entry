@@ -3,15 +3,7 @@
 
 package types
 
-type Request struct {
-	Name string `path:"name,options=you|me"`
-}
-
-type Response struct {
-	Message string `json:"message"`
-}
-
-type StoreRequest struct {
+type DispatchRequest struct {
 	TaskType     string `json:"taskType"`     // 任务类型
 	ScheduleType string `json:"scheduleType"` // 指定要创建的crd类型
 	Spec         string `json:"spec"`         // 任务的定义
@@ -20,7 +12,25 @@ type StoreRequest struct {
 	Version      string `json:"version"`      // 版本号
 }
 
-type StoreResponse struct {
+type DispatchResponse struct {
 	Code    int    `json:"code"`    // 响应状态码
 	Message string `json:"message"` // 响应信息
+}
+
+type GetClusterCRsRequest struct {
+	Type string `json:"type"` // 类型
+}
+
+type GetClusterCRsResponse struct {
+	Code    int                      `json:"code"`    // 响应状态码
+	Message string                   `json:"message"` // 响应信息
+	Data    []map[string]interface{} `json:"data"`    // 数据
+}
+
+type Request struct {
+	Name string `path:"name,options=you|me"`
+}
+
+type Response struct {
+	Message string `json:"message"`
 }
