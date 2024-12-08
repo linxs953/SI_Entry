@@ -1,18 +1,8 @@
-# 🚪 StarInspection Entry
-
-<!-- <p align="center">
-  <img src="docs/assets/gateway-logo.png" alt="Gateway Logo" width="200"/>
-</p> -->
-
-<div align="center">
-
-[![Go Report Card](https://goreportcard.com/badge/github.com/your-org/starinspection)](https://goreportcard.com/report/github.com/linxs953/SI_Entry)  [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-<!-- [![Build Status](https://github.com/your-org/starinspection/workflows/CI/badge.svg)](https://github.com/linxs953/SI_Entry/actions) -->
+# 🚪 KubeInspect Entry
 
 
-</div>
 
-Entry Service服务是`StarInspection`集群的统一入口点，主要负责HTTP请求的路由和转发，以及与其他核心组件的交互协调。
+> Entry Service服务是`KubeInspect`集群的统一入口点，主要负责HTTP请求的路由和转发，以及与其他核心组件的交互协调。
 
 ## ✨ 功能特点
 
