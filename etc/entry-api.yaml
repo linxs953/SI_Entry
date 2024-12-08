@@ -1,5 +1,10 @@
 Name: entry-api
 Host: 0.0.0.0
-Port: 8888
+Port: 8000
+Services:
+  scheduler: 127.0.0.1:8080
 Log:
   Encoding: plain
+
+# Consul:
+#   Host: localhost

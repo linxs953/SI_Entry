@@ -1,45 +1,48 @@
 syntax = "v1"
 
-type Request {
-	Name string `path:"name,options=you|me"`
+type FetchResourceRequest {
+	ResourceType string `json:"resource_type"`
+	ResourceName string `json:"name"`
+	Namespace    string `json:"namespace,optional"`
 }
 
-type Response {
+type FetchResourceResponse {
+	Code    int                    `json:"code"`
+	Message string                 `json:"message"`
+	Data    map[string]interface{} `json:"data"`
+}
+
+type FetchAllResourcesRequest {
+	ResourceType string `json:"resource_type"`
+	Namespace    string `json:"namespace,optional"`
+}
+
+type FetchAllResourcesResponse {
+	Code    int                      `json:"code"`
+	Message string                   `json:"message"`
+	Data    []map[string]interface{} `json:"data"`
+}
+
+type DispatchResourceRequest {
+	ResourceType string                 `json:"type"`
+	Event        string                 `json:"event"`
+	Spec         map[string]interface{} `json:"spec"`
+	Metadata     map[string]interface{} `json:"metadata"`
+}
+
+type DispatchResourceResponse {
+	Code    int    `json:"code"`
 	Message string `json:"message"`
 }
 
-type DispatchRequest {
-	TaskType     string `json:"taskType"` // 任务类型
-	ScheduleType string `json:"scheduleType"` // 指定要创建的crd类型
-	Spec         string `json:"spec"` // 任务的定义
-	Verify       string `json:"verify"` // 任务定义数据结构的验证
-	Image        string `json:"image"` // 关联的镜像
-	Version      string `json:"version"` // 版本号
-}
-
-type DispatchResponse {
-	Code    int    `json:"code"` // 响应状态码
-	Message string `json:"message"` // 响应信息
-}
-
-type GetClusterCRsRequest {
-	Type string `json:"type"` // 类型
-}
-
-type GetClusterCRsResponse {
-	Code    int                      `json:"code"` // 响应状态码
-	Message string                   `json:"message"` // 响应信息
-	Data    []map[string]interface{} `json:"data"` // 数据
-}
-
 service entry-api {
-	@handler EntryHandler
-	get /from/:name (Request) returns (Response)
 
-	@handler dispatchHandler
-	post /dispatch (DispatchRequest) returns (DispatchResponse)
+	@handler fetchResource
+	get /resource/fetch(FetchResourceRequest) returns (FetchResourceResponse)
 
-	@handler getClusterCRsHandler
-	get /cluster/get (GetClusterCRsRequest) returns (GetClusterCRsResponse)
+	@handler fetchResources
+	get /resource/fetchAll(FetchAllResourcesRequest) returns (FetchAllResourcesResponse)
+
+	@handler dispatch
+	post /resource/dispatch(DispatchResourceRequest) returns (DispatchResourceResponse)
 }
-

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/zeromicro/go-zero/core/conf"
+	"github.com/zeromicro/go-zero/rest"
+
 	"entry/internal/config"
 	"entry/internal/handler"
 	"entry/internal/svc"
-
-	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/rest"
 )
 
 var configFile = flag.String("f", "etc/entry-api.yaml", "the config file")
