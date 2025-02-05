@@ -58,8 +58,8 @@ func (l *FetchResourceLogic) FetchResource(req *types.FetchResourceRequest) (res
 	resp = &types.FetchResourceResponse{}
 
 	// 获取gRPC连接
-	conn, ok := l.svcCtx.ClientManager.GetClient("scheduler")
-	if !ok {
+	conn, err := l.svcCtx.ClientManager.GetClient("scheduler")
+	if err != nil {
 		return nil, errors.New("scheduler service not found")
 	}
 

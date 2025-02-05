@@ -26,8 +26,8 @@ type FetchAllResourcesResponse {
 type DispatchResourceRequest {
 	ResourceType string                 `json:"type"`
 	Event        string                 `json:"event"`
-	Spec         map[string]interface{} `json:"spec"`
-	Metadata     map[string]interface{} `json:"metadata"`
+	Spec         map[string]interface{} `json:"spec" validate:"required,dive,required"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type DispatchResourceResponse {
@@ -36,13 +36,13 @@ type DispatchResourceResponse {
 }
 
 service entry-api {
-
 	@handler fetchResource
-	get /resource/fetch(FetchResourceRequest) returns (FetchResourceResponse)
+	get /resource/fetch (FetchResourceRequest) returns (FetchResourceResponse)
 
 	@handler fetchResources
-	get /resource/fetchAll(FetchAllResourcesRequest) returns (FetchAllResourcesResponse)
+	get /resource/fetchAll (FetchAllResourcesRequest) returns (FetchAllResourcesResponse)
 
 	@handler dispatch
-	post /resource/dispatch(DispatchResourceRequest) returns (DispatchResourceResponse)
+	post /resource/dispatch (DispatchResourceRequest) returns (DispatchResourceResponse)
 }
+
