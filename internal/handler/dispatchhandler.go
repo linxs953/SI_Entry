@@ -53,8 +53,9 @@ func dispatchHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		if err != nil {
 			logx.Errorf("创建任务失败, err: %v", err)
 		}
-
+		logx.Error(resp)
 		// 5. 统一返回JSON（无论成功失败）
 		httpx.OkJsonCtx(r.Context(), w, resp)
+
 	}
 }
