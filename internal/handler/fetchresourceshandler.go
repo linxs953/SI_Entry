@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest/httpx"
 
 	"entry/internal/logic"
@@ -19,17 +19,22 @@ func fetchResourcesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		if req.Namespace == "" {
 			req.Namespace = "default"
 		}
-		if req.ResourceType == "" {
-			httpx.ErrorCtx(r.Context(), w, errors.New("type is empty"))
-			return
-		}
+
+		req.Event = r.URL.Query().Get("event")
 
 		l := logic.NewFetchResourcesLogic(r.Context(), svcCtx)
 		resp, err := l.FetchResources(&req)
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
-		} else {
+			logx.Errorf("获取资源列表失败, err: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			httpx.OkJsonCtx(r.Context(), w, resp)
+			return
 		}
+		if resp.Code > 0 {
+			w.WriteHeader(http.StatusInternalServerError)
+			httpx.OkJsonCtx(r.Context(), w, resp)
+			return
+		}
+		httpx.OkJsonCtx(r.Context(), w, resp)
 	}
 }

@@ -1,97 +1,380 @@
 syntax = "proto3";
 
-package Storage;
-option go_package="Storage/storage";
+package storage;
+option go_package = "./storage";
 
-// Task 表示一个待办事项
+// 基础类型定义
+message Empty {}
+
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}
+
+// 状态码枚举
+enum StatusCode {
+  SUCCESS = 0;
+  BAD_REQUEST = 400;
+  UNAUTHORIZED = 401;
+  FORBIDDEN = 403;
+  NOT_FOUND = 404;
+  INTERNAL_ERROR = 500;
+  SERVICE_UNAVAILABLE = 503;
+}
+
+// 统一响应头
+message ResponseHeader {
+  int64 code = 1;
+  string message = 2;
+}
+
+// 枚举类型
+enum TaskType {
+  TASK_TYPE_UNSPECIFIED = 0;
+  TASK_TYPE_MANUAL = 1;
+  TASK_TYPE_AUTO = 2;
+  TASK_TYPE_SCHEDULED = 3;
+}
+
+enum TaskStatus {
+  TASK_STATUS_DISABLED = 0;
+  TASK_STATUS_ENABLED = 1;
+}
+
+// 业务实体定义
 message Task {
-  string id = 1;           // 任务唯一标识符
-  string title = 2;        // 任务标题
-  string description = 3;  // 任务描述
-  enum Status {
-    PENDING = 0;    // 待处理
-    IN_PROGRESS = 1;// 进行中
-    COMPLETED = 2;  // 已完成
+  TaskMeta meta = 1;
+  oneof spec {
+    TaskAPISpec api_spec = 2;
+    TaskSyncSpec sync_spec = 3;
   }
-  Status status = 4;       // 任务状态
-  int64 created_at = 5;    // 创建时间（Unix时间戳）
-  int64 updated_at = 6;    // 更新时间（Unix时间戳）
-  string created_by = 7;   // 创建者
+  int64 type = 4;
+  int64 version = 5;
+  bool enable = 6;
+  string create_at = 7;
+  string update_at = 8;
 }
 
-// 创建任务请求
+// 任务的基础配置
+message TaskMeta {
+  string task_id = 1;
+  string task_name = 2;
+  string task_desc = 3;
+}
+
+// api任务的 Spec
+message TaskAPISpec {
+  repeated Scenarios scenarios = 1;
+  Strategy strategy = 2;
+}
+
+// sync任务的 Spec
+message TaskSyncSpec {
+  string sync_type = 1; // 同步任务类型，11-apidoc/apifox，12-apidoc/swagger 2-db，3-other
+  repeated SyncSource source = 2; // 数据源
+  repeated SyncDestination destination =3; // 目标存储
+  Strategy strategy = 4; // 任务执行策略，定时/重试/超时
+}
+
+message SyncSource {
+  ApifoxConfig apifox = 1;
+}
+
+message SyncDestination {
+  string dest_type = 1; // 存储介质类型，mongodb, mysql, redis, kafka,file
+  MongoConfig mongoConfig = 2;
+  string Mode = 3; // 同步模式，1-全量，2-增量
+}
+
+message ApifoxConfig {
+  string base = 1;
+  string projectId = 2;
+  string shareLink = 3;
+  string username = 4;
+  string password = 5;
+}
+
+message MongoConfig {
+  string host = 1;
+  string port = 2;
+  string username = 3;
+  string password = 4;
+  repeated string dbname = 5;  // 写入跨库多表中
+  repeated string collection = 6; // 写入到同库不同的表中
+}
+
+
+
+// 基础策略
+message Strategy {
+  bool auto = 1; 
+  string cron_expression = 2; 
+  int32 retry_count = 3; 
+  int32 retry_interval = 4; 
+  int32 priority = 5; 
+  int32 timeout = 6; 
+}
+
+message TestData {
+  string data_id = 1;
+  string content = 2;
+  map<string, string> metadata = 3;
+}
+
+message TestReport {
+  string report_id = 1;
+  string task_id = 2;
+  string summary = 3;
+  string detailed_results = 4;
+  bool is_success = 5;
+  Timestamp generate_time = 6;
+}
+
+message SceneConfig {
+  string config_id = 1;
+  string name = 2;
+  map<string, string> settings = 3;
+}
+
+// 接口同步实体
+message InterfaceInfo {
+  string interface_id = 1;
+  string name = 2;
+  string description = 3;
+  string endpoint = 4;
+  string protocol = 5;
+  map<string, string> config = 6;
+  Timestamp create_time = 7;
+  Timestamp update_time = 8;
+}
+
+message Scenarios {
+  string scid = 1;
+  string scname = 2;
+}
+
+
+// 请求/响应消息定义
+// 任务相关
 message CreateTaskRequest {
-  string title = 1;        // 任务标题
-  string description = 2;  // 任务描述
-  string created_by = 3;   // 创建者
+  string name = 1;
+  TaskType type = 2;
+  oneof spec {
+    TaskAPISpec api_spec = 3;
+    TaskSyncSpec sync_spec = 4;
+  }
+  string desc = 5;
 }
 
-// 创建任务响应
-message CreateTaskResponse {
-  OperationResponse response = 1;  // 操作响应
-  string task_id = 2;             // 生成的任务ID
+message GetTaskRequest {
+  string task_id = 1;
 }
 
-// 删除任务请求
+message UpdateTaskRequest {
+  string task_id = 1;
+  string name = 2;
+  string desc = 3;
+  oneof spec {
+    TaskAPISpec api_spec = 4;
+    TaskSyncSpec sync_spec = 5;
+  }
+}
+
 message DeleteTaskRequest {
   string task_id = 1;
 }
 
-// 通用操作响应
-message OperationResponse {
-  int32 code = 1;          // 操作码
-  bool success = 2;        // 操作是否成功
-  string message = 3;      // 错误信息（如果有）
+// 测试数据相关
+message GetTestDataRequest {
+  string data_id = 1;
 }
 
-// 查看任务请求
-message ViewTaskRequest {
+message UpdateTestDataRequest {
+  string data_id = 1;
+  string content = 2;
+  map<string, string> metadata = 3;
+}
+
+message DeleteTestDataRequest {
+  string data_id = 1;
+}
+
+// 场景配置相关
+message GetSceneConfigRequest {
+  string config_id = 1;
+}
+
+message UpdateSceneConfigRequest {
+  string config_id = 1;
+  string name = 2;
+  map<string, string> settings = 3;
+}
+
+message DeleteSceneConfigRequest {
+  string config_id = 1;
+}
+
+// 接口同步相关
+message GetInterfaceListResponse {
+  ResponseHeader header = 1;
+  repeated InterfaceInfo interfaces = 2;
+}
+
+message GetInterfaceRequest {
+  string interface_id = 1;
+}
+
+message GetInterfaceResponse {
+  ResponseHeader header = 1;
+  InterfaceInfo detail = 2;
+}
+
+message DeleteInterfaceRequest {
+  string interface_id = 1;
+}
+
+message SyncInterfaceRequest {
+  string interface_id = 1;
+  map<string, string> sync_config = 2;
+}
+
+message SyncInterfaceResponse {
+  ResponseHeader header = 1;
+  int32 synced_records = 2;
+  Timestamp sync_time = 3;
+}
+
+// 响应消息
+message TaskResponse {
+  ResponseHeader header = 1;
+  TaskMeta meta = 2;
+  oneof spec {
+    TaskAPISpec api_spec = 3;
+    TaskSyncSpec sync_spec = 4;
+  }
+  int64 type = 5;
+  string create_at = 6;
+  string update_at = 7;
+}
+
+message TaskListResponse {
+  ResponseHeader header = 1;
+  message TaskItem {
+    TaskMeta meta = 1;
+    oneof spec {
+      TaskAPISpec api_spec = 2;
+      TaskSyncSpec sync_spec = 3;
+    }
+    int64 type = 4;
+    string create_at = 5;
+    string update_at = 6;
+  }
+  repeated TaskItem data = 2;
+  int32 total = 3;
+}
+
+message DeleteResponse {
+  ResponseHeader header = 1;
+  int64 affected_rows = 2;
+}
+
+message ExecuteTaskRequest {
   string task_id = 1;
 }
 
-// 任务列表响应
-message TaskList {
-  repeated Task tasks = 1;
-  int32 total = 2;        // 总任务数
+message ExecuteTaskResponse {
+  ResponseHeader header = 1;
+  string execution_id = 2;
+  Timestamp start_time = 3;
 }
 
-// 更新任务请求
-message UpdateTaskRequest {
-  string task_id = 1;      // 任务ID
-  optional string title = 2;        // 要更新的标题
-  optional string description = 3;  // 要更新的描述
-  optional Task.Status status = 4;  // 要更新的状态
+message GetTestReportRequest {
+  string report_id = 1;
 }
 
-// 批量删除任务请求
-message BatchDeleteTasksRequest {
-  repeated string task_ids = 1;  // 要删除的任务ID列表
-  bool force = 2;               // 是否强制删除
+message TestReportResponse {
+  ResponseHeader header = 1;
+  TestReport report = 2;
 }
 
-// 空请求消息
-message Empty {}
+message GetTaskReportListRequest {
+  string task_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
 
+message ReportListResponse {
+  ResponseHeader header = 1;
+  repeated TestReport data = 2;
+  int32 total = 3;
+}
+
+message CreateTestDataRequest {
+  string content = 1;
+  map<string, string> metadata = 2;
+}
+
+message TestDataResponse {
+  ResponseHeader header = 1;
+  TestData data = 2;
+}
+
+message TestDataListResponse {
+  ResponseHeader header = 1;
+  repeated TestData data = 2;
+  int32 total = 3;
+}
+
+message CreateSceneConfigRequest {
+  string name = 1;
+  map<string, string> settings = 2;
+}
+
+message SceneConfigResponse {
+  ResponseHeader header = 1;
+  SceneConfig config = 2;
+}
+
+message SceneConfigListResponse {
+  ResponseHeader header = 1;
+  repeated SceneConfig data = 2;
+  int32 total = 3;
+}
+
+// 服务定义
 service Storage {
-  // 测试接口
-  rpc TestRpc(Empty) returns (OperationResponse) {}
+  // 任务管理
+  rpc CreateTask(CreateTaskRequest) returns (TaskResponse);
+  rpc GetTask(GetTaskRequest) returns (TaskResponse);
+  rpc UpdateTask(UpdateTaskRequest) returns (TaskResponse);
+  rpc DeleteTask(DeleteTaskRequest) returns (DeleteResponse);
+  rpc ListTasks(Empty) returns (TaskListResponse);
 
-  // 添加新任务
-  rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse) {}
+  // 任务执行
+  rpc ExecuteTask(ExecuteTaskRequest) returns (ExecuteTaskResponse);
   
-  // 删除任务
-  rpc DeleteTask(DeleteTaskRequest) returns (OperationResponse) {}
-  
-  // 更新任务
-  rpc UpdateTask(UpdateTaskRequest) returns (OperationResponse) {}
-  
-  // 查看单个任务详情
-  rpc ViewTask(ViewTaskRequest) returns (Task) {}
-  
-  // 列出所有任务
-  rpc ListTasks(Empty) returns (TaskList) {}
-  
-  // 批量删除任务
-  rpc BatchDeleteTasks(BatchDeleteTasksRequest) returns (OperationResponse) {}
+  // 测试报告
+  rpc GetReport(GetTestReportRequest) returns (TestReportResponse);
+  rpc ListReports(GetTaskReportListRequest) returns (ReportListResponse);
+  rpc DeleteReport(GetTestReportRequest) returns (DeleteResponse);
+
+  // 测试数据
+  rpc CreateTestData(CreateTestDataRequest) returns (TestDataResponse);
+  rpc GetTestData(GetTestDataRequest) returns (TestDataResponse);
+  rpc UpdateTestData(UpdateTestDataRequest) returns (TestDataResponse);
+  rpc DeleteTestData(DeleteTestDataRequest) returns (DeleteResponse);
+  rpc ListTestData(Empty) returns (TestDataListResponse);
+
+  // 场景配置
+  rpc CreateSceneConfig(CreateSceneConfigRequest) returns (SceneConfigResponse);
+  rpc GetSceneConfig(GetSceneConfigRequest) returns (SceneConfigResponse);
+  rpc UpdateSceneConfig(UpdateSceneConfigRequest) returns (SceneConfigResponse);
+  rpc DeleteSceneConfig(DeleteSceneConfigRequest) returns (DeleteResponse);
+  rpc ListSceneConfigs(Empty) returns (SceneConfigListResponse);
+
+  // 接口同步
+  rpc GetInterfaceList(Empty) returns (GetInterfaceListResponse);
+  rpc GetInterfaceDetail(GetInterfaceRequest) returns (GetInterfaceResponse);
+  rpc DeleteInterface(DeleteInterfaceRequest) returns (DeleteResponse);
+  rpc SyncInterface(SyncInterfaceRequest) returns (SyncInterfaceResponse);
 }
-  

@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/zeromicro/go-zero/core/logx"
-
+	ie "entry/internal/error"
 	"entry/internal/logic/utils"
-	"entry/internal/proto/scheduler"
+	"entry/internal/proto/storage"
 	"entry/internal/svc"
 	"entry/internal/types"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type DispatchLogic struct {
@@ -29,26 +30,27 @@ func NewDispatchLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Dispatch
 
 func (l *DispatchLogic) Dispatch(req *types.DispatchResourceRequest) (resp *types.DispatchResourceResponse, err error) {
 	resp = &types.DispatchResourceResponse{
-		Code:    0,
-		Message: "success",
+		Code:    int(ie.Success),
+		Message: ie.Success.GetMessage(),
+		Extra:   make(map[string]interface{}),
 	}
 
-	// 获取gRPC连接
-	conn, err := l.svcCtx.ClientManager.GetClient("scheduler")
+	conn, err := l.svcCtx.ClientManager.GetClient("storage")
 	if err != nil {
-		l.Logger.Errorf("scheduler service not found, continuing without scheduler")
-		resp.Code = -1
-		resp.Message = err.Error()
-		return resp, err
+		l.Logger.Errorf("storage service not found: %v", err)
+		svcErr := ie.WrapError(ie.ServiceUnavailable, err, "storage service not found")
+		resp.Code = int(ie.GetErrorCode(svcErr))
+		resp.Message = svcErr.Error()
+		return resp, svcErr
 	}
 
-	// 创建scheduler client
-	client := scheduler.NewSchedulerClient(conn)
-	if client == nil {
-		l.Logger.Errorf("scheduler client creation failed, continuing without scheduler")
-		resp.Code = 1
-		resp.Message = "scheduler client creation failed, continuing without scheduler"
-		return resp, nil
+	storageClient := storage.NewStorageClient(conn)
+	if storageClient == nil {
+		l.Logger.Error("storage rpc client creation failed")
+		svcErr := ie.WrapError(ie.ServiceUnavailable, fmt.Errorf("failed to create storage RPC client"), "storage service initialization failed")
+		resp.Code = int(ie.GetErrorCode(svcErr))
+		resp.Message = svcErr.Error()
+		return resp, svcErr
 	}
 
 	// metadata中没有指定namespace，指定default
@@ -56,30 +58,87 @@ func (l *DispatchLogic) Dispatch(req *types.DispatchResourceRequest) (resp *type
 		req.Metadata["namespace"] = "default"
 	}
 
-	// 尝试调用scheduler服务
-	_, err = l.dispatchResource(client, req.ResourceType, req.Event, req.Spec, req.Metadata)
-	if err != nil {
-		// 记录错误但不中断流程
-		l.Logger.Errorf("scheduler dispatch failed: %v, continuing without scheduler", err)
-		resp.Code = 2
-		resp.Message = "scheduler dispatch failed"
-		return resp, nil
+	rpcResp, dispatchErr := l.dispatchResourceByStorage(storageClient, req)
+	if dispatchErr != nil {
+		l.Logger.Errorf("storage dispatch failed: %v", dispatchErr)
+		resp.Code = int(ie.GetErrorCode(dispatchErr))
+		resp.Message = dispatchErr.(*ie.Error).Message
+		return resp, dispatchErr
 	}
-	resp.Code = 0
+
+	resp.Code = int(ie.Success)
 	resp.Message = fmt.Sprintf("%s Resource Successfully", req.Event)
+	resp.Extra = rpcResp
 	return
 }
 
-func (l *DispatchLogic) dispatchResource(client scheduler.SchedulerClient, resourceType string, event string, spec map[string]interface{}, metadata map[string]interface{}) (map[string]interface{}, error) {
-	switch resourceType {
-	case "1": // ImageBuild
-		return nil, nil
-	case "2": // Sync
-		return utils.DispatchSynchronizerEvent(l.ctx, client, event, spec, metadata)
-	case "3": // ApiRuntime
-		return nil, nil
+// func (l *DispatchLogic) dispatchResource(client scheduler.SchedulerClient, resourceType string, event string, spec map[string]interface{}, metadata map[string]interface{}) (map[string]interface{}, error) {
+// 	switch resourceType {
+// 	case "1": // ImageBuild
+// 		return nil, nil
+// 	case "2": // Sync
+// 		return utils.DispatchSynchronizerEvent(l.ctx, client, event, spec, metadata)
+// 	case "3": // ApiRuntime
+// 		return nil, nil
+// 	default:
+// 		return nil, fmt.Errorf("unsupported resource type: %s", resourceType)
+// 	}
+// }
+
+func (l *DispatchLogic) dispatchResourceByStorage(client storage.StorageClient, req *types.DispatchResourceRequest) (map[string]interface{}, error) {
+	typeMapStr := `
+	{
+		"sync": 1,
+		"apiruntime": 2,
+		"imagebuild": 3
+	}
+	`
+	var typeMap map[string]int
+	err := json.Unmarshal([]byte(typeMapStr), &typeMap)
+	if err != nil {
+		logx.Errorf("Failed to unmarshal JSON: %v", err)
+		return nil, ie.WrapError(ie.DataProcessError, err, "Failed to unmarshal resource type mapping")
+	}
+
+	storageUtil := utils.StorageSvcUtil{
+		Client: client,
+		Ctx:    l.ctx,
+	}
+
+	switch req.Event {
+	case "createTestData":
+		return storageUtil.CreateTaskData()
+	case "updateTestData":
+		return storageUtil.UpdateTaskData()
+	case "deleteTestData":
+		return storageUtil.DeleteTaskData()
+	// case "getTestData":
+	// 	return storageUtil.GetTaskData()
+	// case "getAllTestData":
+	// 	return storageUtil.GetTestDataList()
+	case "createSceneConfig":
+		return storageUtil.CreateSceniroConfig()
+	case "updateSceneConfig":
+		return storageUtil.UpdateSceniroConfig()
+	case "deleteSceneConfig":
+		return storageUtil.DeleteSceniroConfig()
+	// case "getSceneConfig":
+	// 	return storageUtil.GetSceniroConfig()
+	// case "getAllSceneConfig":
+	// 	return storageUtil.GetAllSceniroConfig()
+	case "createTask":
+		return storageUtil.CreateTask(req.Spec, req.Metadata, typeMap[req.ResourceType])
+	case "updateTask":
+		updateTaskId := req.Metadata["taskId"].(string)
+		return storageUtil.UpdateTask(updateTaskId, req.Spec, req.Metadata, typeMap[req.ResourceType])
+	case "deleteTask":
+		updateTaskId := req.Metadata["taskId"].(string)
+		return storageUtil.DeleteTask(updateTaskId)
+	case "execTask":
+		execTask := req.Metadata["taskId"].(string)
+		return storageUtil.ExecuteTask(execTask)
 	default:
-		return nil, fmt.Errorf("unsupported resource type: %s", resourceType)
+		return nil, ie.NewError(ie.InvalidEventType, "unsupported event: %s", req.Event)
 	}
 }
 

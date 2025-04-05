@@ -11,13 +11,16 @@ type DispatchResourceRequest struct {
 }
 
 type DispatchResourceResponse struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code    int                    `json:"code"`
+	Message string                 `json:"message"`
+	Extra   map[string]interface{} `json:"extra"`
 }
 
 type FetchAllResourcesRequest struct {
-	ResourceType string `json:"resource_type"`
-	Namespace    string `json:"namespace,optional"`
+	Event        string                 `json:"event"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	ResourceType string                 `json:"resource_type"`
+	Namespace    string                 `json:"namespace,optional"`
 }
 
 type FetchAllResourcesResponse struct {
@@ -27,9 +30,11 @@ type FetchAllResourcesResponse struct {
 }
 
 type FetchResourceRequest struct {
-	ResourceType string `json:"resource_type"`
-	ResourceName string `json:"name"`
-	Namespace    string `json:"namespace,optional"`
+	Event        string                 `json:"event"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	ResourceType string                 `json:"resource_type"`
+	ResourceName string                 `json:"name"`
+	Namespace    string                 `json:"namespace,optional"`
 }
 
 type FetchResourceResponse struct {

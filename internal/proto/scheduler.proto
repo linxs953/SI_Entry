@@ -1,209 +1,309 @@
 syntax = "proto3";
 
-package scheduler;
-option go_package="./scheduler";
+package storage;
+option go_package = "./storage";
 
-// ===== Service Base Types =====
+// 基础类型定义
+message Empty {}
 
-// ===== imagebuild.proto =====
-message GitConfig {
-  string url = 1;     // git 仓库地址
-  string branch = 2;  // 分支名称
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
 }
 
-// 镜像相关配置
-message ImageConfig {
-  string name = 1;    // 镜像名称
-  string tag = 2;     // 镜像标签
+// 状态码枚举
+enum StatusCode {
+  SUCCESS = 0;
+  BAD_REQUEST = 400;
+  UNAUTHORIZED = 401;
+  FORBIDDEN = 403;
+  NOT_FOUND = 404;
+  INTERNAL_ERROR = 500;
+  SERVICE_UNAVAILABLE = 503;
 }
 
-// 清理配置
-message CleanupConfig {
-  bool enabled = 1;      // 是否启用清理
-  int32 max_builds = 2;  // 保留的最大构建数量
-}
-
-// ImageBuild的返回对象
-message BuildConfig {
-  string id = 1;              // 配置ID
-  GitConfig git = 2;          
-  ImageConfig image = 3;      
-  int32 rebuild_flag = 4;     
-  CleanupConfig cleanup = 5;  
-  string created_at = 6;      // 创建时间
-  string updated_at = 7;      // 更新时间
-}
-
-// 构建
-message CreateImageBuildRequest {
-  GitConfig git = 1;           // git 配置
-  ImageConfig image = 2;       // 镜像配置
-  int32 rebuild_flag = 3;      // 重建标志
-  CleanupConfig cleanup = 4;   // 清理配置
-}
-
-// 构建响应消息
-message CreateImageBuildResponse {
-  int32 Code = 1;
-  bool success = 2;            // 构建是否成功
-  string message = 3;          // 响应消息
-  string build_id = 4;         // 构建ID
-}
-
-// 更新构建请求
-message UpdateBuildRequest {
-  string id = 1;              // 要更新的配置ID
-  GitConfig git = 2;          
-  ImageConfig image = 3;      
-  int32 rebuild_flag = 4;     
-  CleanupConfig cleanup = 5;  
-}
-
-// 更新构建响应
-message UpdateBuildResponse {
-  int32 code = 1;
-  bool success = 2;           
-  string message = 3;         
-  BuildConfig config = 4;     // 返回更新后的配置
-}
-
-
-// 删除构建请求
-message DeleteBuildRequest {
-  string id = 1;              // 要删除的配置ID
-}
-
-// 删除构建响应
-message DeleteBuildResponse {
-  int32 code = 1;
-  bool success = 2;           
-  string message = 3;         
-}
-
-// 获取构建请求
-message GetBuildRequest {
-  string id = 1;              // 要获取的配置ID
-}
-
-// 获取构建响应
-message GetBuildResponse {
-  int32 code = 1;
-  bool success = 2;           
-  string message = 3;         
-  BuildConfig config = 4;     // 返回查询到的配置
-}
-
-
-// 列出所有构建请求
-message ListBuildsRequest {
-  int32 page_size = 1;        // 每页数量
-  int32 page_num = 2;         // 页码
-}
-
-// 列出所有构建响应
-message ListBuildsResponse {
-  int32 code = 1;
-  bool success = 2;           
-  string message = 3;         
-  repeated BuildConfig configs = 4;  // 配置列表
-  int32 total = 5;            // 总数
-}
-
-
-// ===== taskdef.proto =====
-message TaskDefineSpec {
-  string idl_code = 1;      // idlid，表示唯一idl
-  string idl_type = 2;      // 同步器类型
-  string idl_name = 3;      // 同步器名称
-  string idl_version = 4;   // 同步器版本
-  RelatedImage related_image = 5;  // 相关镜像信息
-  string definition = 6;  // 可以是任意合法的JSON对象
-  message RelatedImage {
-    string builder = 1;    // 构建器名称
-    string digest = 2;     // 镜像digest
-    string version = 3;    // ImageBuild.status中的构建版本
-    string namespace = 4;  // 命名空间
-  }
-}
-
-message TaskDefineStatus {
-  string state = 1;         // 状态
-  string message = 2;       // 消息
-  string last_updated = 3;  // 最后更新时间
-}
-
-message TaskDefine {
-  TaskDefineSpec spec = 1;
-  TaskDefineStatus status = 2;
-}
-
-message CreateTaskDefineRequest {
-  map<string, string> metadata =1;
-  TaskDefineSpec spec = 2;
-}
-
-message CreateTaskDefineResponse {
-  int32 code = 1;
-  string message = 2;
-  TaskDefine data = 3;
-}
-
-message UpdateTaskDefineRequest {
-  map<string, string> metadata =1;
-  TaskDefineSpec spec = 2;
-}
-
-message UpdateTaskDefineResponse {
-  int32 code = 1;
-  string message = 2;
-  TaskDefine data = 3;
-}
-
-message DeleteTaskDefineRequest {
-  map<string, string> metadata =1;
-}
-
-message DeleteTaskDefineResponse {
-  int32 code = 1;
+// 统一响应头
+message ResponseHeader {
+  StatusCode code = 1;
   string message = 2;
 }
 
-message GetTaskDefineRequest {
-  map<string, string> metadata =1;
+// 枚举类型
+enum TaskType {
+  TASK_TYPE_UNSPECIFIED = 0;
+  TASK_TYPE_MANUAL = 1;
+  TASK_TYPE_AUTO = 2;
+  TASK_TYPE_SCHEDULED = 3;
 }
 
-message GetTaskDefineResponse {
-  int32 code = 1;
-  string message = 2;
-  TaskDefine data = 3;
+enum TaskStatus {
+  TASK_STATUS_DISABLED = 0;
+  TASK_STATUS_ENABLED = 1;
 }
 
-message ListTaskDefinesRequest {
-  map<string, string> metadata =1;
-  int32 page_size = 2;
-  int32 page_num = 3;
-  map<string, string> labels = 4;
+// 业务实体定义
+message Task {
+  string task_id = 1;
+  string task_name = 2;
+  string task_desc = 3;
+  int64 type = 4;
+  Strategy strategy = 5;
+  string spec = 6;
+  int64 version = 7;
+  bool enable = 8;
+  string create_at = 9;
+  string update_at = 10;
 }
 
-message ListTaskDefinesResponse {
-  int32 code = 1;
-  string message = 2;
-  repeated TaskDefine data = 3;
-  int32 total = 4;
+message Strategy {
+  bool auto = 1; 
+  string cron_expression = 2; 
+  int32 retry_count = 3; 
+  int32 retry_interval = 4; 
+  int32 priority = 5; 
+  int32 timeout = 6; 
 }
-// ===== Service Definition =====
-service Scheduler {
-  // TaskDefine 相关操作
-  rpc CreateTaskDefine(CreateTaskDefineRequest) returns (CreateTaskDefineResponse) {}
-  rpc UpdateTaskDefine(UpdateTaskDefineRequest) returns (UpdateTaskDefineResponse) {}
-  rpc DeleteTaskDefine(DeleteTaskDefineRequest) returns (DeleteTaskDefineResponse) {}
-  rpc GetTaskDefine(GetTaskDefineRequest) returns (GetTaskDefineResponse) {}
-  rpc ListTaskDefines(ListTaskDefinesRequest) returns (ListTaskDefinesResponse) {}
+
+message TestData {
+  string data_id = 1;
+  string content = 2;
+  map<string, string> metadata = 3;
+}
+
+message TestReport {
+  string report_id = 1;
+  string task_id = 2;
+  string summary = 3;
+  string detailed_results = 4;
+  bool is_success = 5;
+  Timestamp generate_time = 6;
+}
+
+message SceneConfig {
+  string config_id = 1;
+  string name = 2;
+  map<string, string> settings = 3;
+}
+
+// 接口同步实体
+message InterfaceInfo {
+  string interface_id = 1;
+  string name = 2;
+  string description = 3;
+  string endpoint = 4;
+  string protocol = 5;
+  map<string, string> config = 6;
+  Timestamp create_time = 7;
+  Timestamp update_time = 8;
+}
+
+message Scenarios {
+  string scid = 1;
+  string scname = 2;
+}
+
+message TaskSpec {
+  repeated Scenarios scenarios = 1;
+  bool enable = 2;
+}
+
+// 请求/响应消息定义
+// 任务相关
+message CreateTaskRequest {
+  string name = 1;
+  TaskType type = 2;
+  TaskSpec spec = 3;
+  Strategy strategy = 4;
+  string desc = 5;
+}
+
+message GetTaskRequest {
+  string task_id = 1;
+}
+
+message UpdateTaskRequest {
+  string task_id = 1;
+  string name = 2;
+  map<string, string> parameters = 3;
+}
+
+message DeleteTaskRequest {
+  string task_id = 1;
+}
+
+// 测试数据相关
+message GetTestDataRequest {
+  string data_id = 1;
+}
+
+message UpdateTestDataRequest {
+  string data_id = 1;
+  string content = 2;
+  map<string, string> metadata = 3;
+}
+
+message DeleteTestDataRequest {
+  string data_id = 1;
+}
+
+// 场景配置相关
+message GetSceneConfigRequest {
+  string config_id = 1;
+}
+
+message UpdateSceneConfigRequest {
+  string config_id = 1;
+  string name = 2;
+  map<string, string> settings = 3;
+}
+
+message DeleteSceneConfigRequest {
+  string config_id = 1;
+}
+
+// 接口同步相关
+message GetInterfaceListResponse {
+  ResponseHeader header = 1;
+  repeated InterfaceInfo interfaces = 2;
+}
+
+message GetInterfaceRequest {
+  string interface_id = 1;
+}
+
+message GetInterfaceResponse {
+  ResponseHeader header = 1;
+  InterfaceInfo detail = 2;
+}
+
+message DeleteInterfaceRequest {
+  string interface_id = 1;
+}
+
+message SyncInterfaceRequest {
+  string interface_id = 1;
+  map<string, string> sync_config = 2;
+}
+
+message SyncInterfaceResponse {
+  ResponseHeader header = 1;
+  int32 synced_records = 2;
+  Timestamp sync_time = 3;
+}
+
+// 响应消息
+message TaskResponse {
+  ResponseHeader header = 1;
+  Task task = 2;
+}
+
+message TaskListResponse {
+  ResponseHeader header = 1;
+  repeated Task data = 2;
+}
+
+message DeleteResponse {
+  ResponseHeader header = 1;
+  int64 affected_rows = 2;
+}
+
+message ExecuteTaskRequest {
+  string task_id = 1;
+}
+
+message ExecuteTaskResponse {
+  ResponseHeader header = 1;
+  string execution_id = 2;
+  Timestamp start_time = 3;
+}
+
+message GetTestReportRequest {
+  string report_id = 1;
+}
+
+message TestReportResponse {
+  ResponseHeader header = 1;
+  TestReport report = 2;
+}
+
+message GetTaskReportListRequest {
+  string task_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ReportListResponse {
+  ResponseHeader header = 1;
+  repeated TestReport data = 2;
+  int32 total = 3;
+}
+
+message CreateTestDataRequest {
+  string content = 1;
+  map<string, string> metadata = 2;
+}
+
+message TestDataResponse {
+  ResponseHeader header = 1;
+  TestData data = 2;
+}
+
+message TestDataListResponse {
+  ResponseHeader header = 1;
+  repeated TestData data = 2;
+  int32 total = 3;
+}
+
+message CreateSceneConfigRequest {
+  string name = 1;
+  map<string, string> settings = 2;
+}
+
+message SceneConfigResponse {
+  ResponseHeader header = 1;
+  SceneConfig config = 2;
+}
+
+message SceneConfigListResponse {
+  ResponseHeader header = 1;
+  repeated SceneConfig data = 2;
+  int32 total = 3;
+}
+
+// 服务定义
+service Storage {
+  // 任务管理
+  rpc CreateTask(CreateTaskRequest) returns (TaskResponse);
+  rpc GetTask(GetTaskRequest) returns (TaskResponse);
+  rpc UpdateTask(UpdateTaskRequest) returns (TaskResponse);
+  rpc DeleteTask(DeleteTaskRequest) returns (DeleteResponse);
+  rpc ListTasks(Empty) returns (TaskListResponse);
+
+  // 任务执行
+  rpc ExecuteTask(ExecuteTaskRequest) returns (ExecuteTaskResponse);
   
-  // ImageBuild 相关操作
-  rpc CreateImageBuild(CreateImageBuildRequest) returns (CreateImageBuildResponse) {}
-  rpc UpdateImageBuild(UpdateBuildRequest) returns (UpdateBuildResponse) {}
-  rpc DeleteImageBuild(DeleteBuildRequest) returns (DeleteBuildResponse) {}
-  rpc GetImageBuild(GetBuildRequest) returns (GetBuildResponse) {}
-  rpc ListImageBuilds(ListBuildsRequest) returns (ListBuildsResponse) {}
+  // 测试报告
+  rpc GetReport(GetTestReportRequest) returns (TestReportResponse);
+  rpc ListReports(GetTaskReportListRequest) returns (ReportListResponse);
+  rpc DeleteReport(GetTestReportRequest) returns (DeleteResponse);
+
+  // 测试数据
+  rpc CreateTestData(CreateTestDataRequest) returns (TestDataResponse);
+  rpc GetTestData(GetTestDataRequest) returns (TestDataResponse);
+  rpc UpdateTestData(UpdateTestDataRequest) returns (TestDataResponse);
+  rpc DeleteTestData(DeleteTestDataRequest) returns (DeleteResponse);
+  rpc ListTestData(Empty) returns (TestDataListResponse);
+
+  // 场景配置
+  rpc CreateSceneConfig(CreateSceneConfigRequest) returns (SceneConfigResponse);
+  rpc GetSceneConfig(GetSceneConfigRequest) returns (SceneConfigResponse);
+  rpc UpdateSceneConfig(UpdateSceneConfigRequest) returns (SceneConfigResponse);
+  rpc DeleteSceneConfig(DeleteSceneConfigRequest) returns (DeleteResponse);
+  rpc ListSceneConfigs(Empty) returns (SceneConfigListResponse);
+
+  // 接口同步
+  rpc GetInterfaceList(Empty) returns (GetInterfaceListResponse);
+  rpc GetInterfaceDetail(GetInterfaceRequest) returns (GetInterfaceResponse);
+  rpc DeleteInterface(DeleteInterfaceRequest) returns (DeleteResponse);
+  rpc SyncInterface(SyncInterfaceRequest) returns (SyncInterfaceResponse);
 }

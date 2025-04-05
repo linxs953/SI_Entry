@@ -1,9 +1,11 @@
 syntax = "v1"
 
 type FetchResourceRequest {
-	ResourceType string `json:"resource_type"`
-	ResourceName string `json:"name"`
-	Namespace    string `json:"namespace,optional"`
+	Event        string                 `json:"event"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	ResourceType string                 `json:"resource_type"`
+	ResourceName string                 `json:"name"`
+	Namespace    string                 `json:"namespace,optional"`
 }
 
 type FetchResourceResponse {
@@ -13,8 +15,10 @@ type FetchResourceResponse {
 }
 
 type FetchAllResourcesRequest {
-	ResourceType string `json:"resource_type"`
-	Namespace    string `json:"namespace,optional"`
+	Event        string                 `json:"event"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	ResourceType string                 `json:"resource_type"`
+	Namespace    string                 `json:"namespace,optional"`
 }
 
 type FetchAllResourcesResponse {
@@ -31,8 +35,9 @@ type DispatchResourceRequest {
 }
 
 type DispatchResourceResponse {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code    int                    `json:"code"`
+	Message string                 `json:"message"`
+	Extra   map[string]interface{} `json:"extra"`
 }
 
 service entry-api {

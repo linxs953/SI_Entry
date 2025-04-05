@@ -6,6 +6,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest/httpx"
 
+	ie "entry/internal/error"
 	"entry/internal/logic"
 	"entry/internal/svc"
 	"entry/internal/types"
@@ -21,7 +22,7 @@ func dispatchHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.DispatchResourceRequest
 		response := types.DispatchResourceResponse{
-			Code:    200,
+			Code:    int(ie.Success),
 			Message: "success",
 		}
 
@@ -32,7 +33,7 @@ func dispatchHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 
-		if len(req.Spec) == 0 {
+		if req.Event == "createTask" && len(req.Spec) == 0 {
 			w.WriteHeader(http.StatusBadRequest)
 			response.Code = http.StatusBadRequest
 			response.Message = "参数校验失败: Need Specific Spec field"
@@ -52,10 +53,10 @@ func dispatchHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		resp, err := l.Dispatch(&req)
 		if err != nil {
 			logx.Errorf("创建任务失败, err: %v", err)
+			response.Code = int(ie.GetErrorCode(err))
+			response.Message = err.Error()
 		}
-		logx.Error(resp)
-		// 5. 统一返回JSON（无论成功失败）
-		httpx.OkJsonCtx(r.Context(), w, resp)
-
+		response.Extra = resp.Extra
+		httpx.OkJsonCtx(r.Context(), w, response)
 	}
 }

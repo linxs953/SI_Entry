@@ -4,6 +4,7 @@ Port: 8000
 Timeout: 5000 # 最长5s返回
 Services:
   scheduler: 127.0.0.1:8080
+  storage: 127.0.0.1:8080
 Log:
   Encoding: plain
 
